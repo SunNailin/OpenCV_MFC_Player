@@ -125,10 +125,12 @@ public:
 		printf("Client连接...\n");
 		if(connect(sockClient,(SOCKADDR*)&addrServer,sizeof(SOCKADDR))<0){
 			printf("Client建立连接失败\n");
-			exit(1);
+			//exit(1);
 		}
 		printf("Client连接已建立\n");
 	}
+
+
 	int sendRGBFrame (rgbFrame& frame){
 		//int sendCount=0;
 		int sendRet;

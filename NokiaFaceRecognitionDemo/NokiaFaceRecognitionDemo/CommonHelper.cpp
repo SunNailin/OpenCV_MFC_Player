@@ -23,3 +23,5 @@ unsigned char* CCommonHelper::cvMat2RGB(cv::Mat matFrame)
     }
 	return arrayData;
 }
+
+
