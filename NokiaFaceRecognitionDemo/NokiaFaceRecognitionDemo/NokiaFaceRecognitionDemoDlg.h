@@ -50,6 +50,7 @@ public:
 	static DWORD WINAPI ThreadReceiveRecResult(LPVOID pParam);
 	afx_msg void OnBnClickedButton1();
 	afx_msg void OnBnClickedButton2();
+	CvCapture* m_pCapture ;
 private:
 	
 	rgbFrame* m_buffer;	

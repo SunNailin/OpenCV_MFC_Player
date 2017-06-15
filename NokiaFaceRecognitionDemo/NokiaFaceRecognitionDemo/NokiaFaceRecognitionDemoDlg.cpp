@@ -32,7 +32,7 @@ BYTE curFrame[IMAGE_WIDTH][IMAGE_HEIGHT][3];
 HANDLE hdlReceiveRecResult = NULL;		//读网络接收缓冲区所需要的线程的 句柄和ID
 DWORD dwThreadIDReceiveRecResult = 0;
 CEvent ceRecResultReceived;				//在读网络接收缓冲区线程中，如果接收到了完整的检测结果，触发此事件
-										//一帧视频数据发送后，一致等待此事件，当检测到事件后处理检测结果，显示
+//一帧视频数据发送后，一致等待此事件，当检测到事件后处理检测结果，显示
 
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
@@ -126,6 +126,9 @@ BOOL CNokiaFaceRecognitionDemoDlg::OnInitDialog()
 	// TODO: 在此添加额外的初始化代码
 	WinClient client(ipAddr,portNo);
 	m_pFrameBuffer = (rgbFrame*)malloc(MAX_BUFFERFRAMES*(12+MAX_LEN));
+	m_pCapture= cvCreateCameraCapture(0);
+
+
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -182,8 +185,15 @@ HCURSOR CNokiaFaceRecognitionDemoDlg::OnQueryDragIcon()
 //显示原始视频流，并向检测端发送数据，维护缓冲区
 void CNokiaFaceRecognitionDemoDlg::OnBnClickedOk()
 {
-
-	
+	cvNamedWindow("originVideo", 1);
+	while(true){		
+		cv::Mat matFrame = CNokiaFaceRecognitionDemoDlg::RcvRgbFrmFromDecoderServer();
+		if(matFrame.cols == 0) break;
+		imshow("originVideo",matFrame); 
+		char c = cv::waitKey(45);
+		if(27 == c) break;
+	}
+	cvDestroyWindow("originVideo"); 
 }
 
 void CNokiaFaceRecognitionDemoDlg::OnFinalRelease()
@@ -198,40 +208,40 @@ void CNokiaFaceRecognitionDemoDlg::OnFinalRelease()
 //模拟从解码服务器端获得图像数据
 cv::Mat CNokiaFaceRecognitionDemoDlg::RcvRgbFrmFromDecoderServer()
 {
-//    // TODO: ÔÚ´ËÌí¼Ó¿Ø¼þÍ¨Öª´¦Àí³ÌÐò´úÂë
-//	//比如这个函数是接收视频数据
-//	/*需要定义一个全局计数器
-//	  接收到视频数据后，因为要求两帧检测一次，所以可以考虑不保存偶数(奇数)帧
-//	*/
-//	rgbFrame rgbFrm;
-//	nCurFrameNum++;
-//	if (1 != (nCurFrameNum % 2))
-//	{//偶数帧不保存
-////		return;
-//	}
-//	//保存此帧数据到缓冲区
-//	nBufferedFrames++;
-//	nCurBufferPointer++;
-//	//bufferFrame [] = 
-//	if (nBufferedFrames > MAX_BUFFERFRAMES)
-//		nBufferedFrames = MAX_BUFFERFRAMES;
-//	nCurBufferPointer %= MAX_BUFFERFRAMES;//求余是为了对图像缓冲区进行循环利用
-//	//SaveFrame(nCurBufferPointer);假设这个是将当前帧保存到缓冲区的函数
-//	m_CurFrame2Send.frameNo = nCurBufferPointer;
-//	memcpy((BYTE*)&m_CurFrame2Send + OFFSET_RGBDATAINFRAME, curFrame, MAX_FRAME_LEN);
-//	m_Param2SendFrame.pDlg = this;//传递此指针是为了在线程中可以对对话框进行操作，比如显示图像
-//	m_Param2SendFrame.pImgFrame = &m_CurFrame2Send;
-//	AfxBeginThread(CNokiaFaceRecognitionDemoDlg::ThreadSendFrame2Detect, (LPVOID)&m_Param2SendFrame);
-//	return rgbFrm;
+	//    // TODO: ÔÚ´ËÌí¼Ó¿Ø¼þÍ¨Öª´¦Àí³ÌÐò´úÂë
+	//	//比如这个函数是接收视频数据
+	//	/*需要定义一个全局计数器
+	//	  接收到视频数据后，因为要求两帧检测一次，所以可以考虑不保存偶数(奇数)帧
+	//	*/
+	//	rgbFrame rgbFrm;
+	//	nCurFrameNum++;
+	//	if (1 != (nCurFrameNum % 2))
+	//	{//偶数帧不保存
+	////		return;
+	//	}
+	//	//保存此帧数据到缓冲区
+	//	nBufferedFrames++;
+	//	nCurBufferPointer++;
+	//	//bufferFrame [] = 
+	//	if (nBufferedFrames > MAX_BUFFERFRAMES)
+	//		nBufferedFrames = MAX_BUFFERFRAMES;
+	//	nCurBufferPointer %= MAX_BUFFERFRAMES;//求余是为了对图像缓冲区进行循环利用
+	//	//SaveFrame(nCurBufferPointer);假设这个是将当前帧保存到缓冲区的函数
+	//	m_CurFrame2Send.frameNo = nCurBufferPointer;
+	//	memcpy((BYTE*)&m_CurFrame2Send + OFFSET_RGBDATAINFRAME, curFrame, MAX_FRAME_LEN);
+	//	m_Param2SendFrame.pDlg = this;//传递此指针是为了在线程中可以对对话框进行操作，比如显示图像
+	//	m_Param2SendFrame.pImgFrame = &m_CurFrame2Send;
+	//	AfxBeginThread(CNokiaFaceRecognitionDemoDlg::ThreadSendFrame2Detect, (LPVOID)&m_Param2SendFrame);
+	//	return rgbFrm;
 
 	//声明IplImage指针  
 	IplImage* pFrame = NULL;  
 
 	//获取摄像头  
-	CvCapture* pCapture = cvCreateCameraCapture(0);
-	cv::Mat matFrame = (cv::Mat)cvQueryFrame( pCapture );
-	cvReleaseCapture(&pCapture); 
-	cv::waitKey(45);
+	//CvCapture* pCapture = cvCreateCameraCapture(0);
+	cv::Mat matFrame = (cv::Mat)cvQueryFrame( m_pCapture );
+	//cvReleaseCapture(&m_pCapture); 
+	//cv::waitKey(45);
 	return matFrame;
 	//cvDestroyWindow("video"); 
 	//创建窗口  
@@ -240,25 +250,25 @@ cv::Mat CNokiaFaceRecognitionDemoDlg::RcvRgbFrmFromDecoderServer()
 	//显示视频  
 	//while(1)  
 	//{  
-		//pFrame=cvQueryFrame( pCapture1 );  
-		
-		//if(!pFrame)break;  
-		//cvShowImage("video",pFrame1);
+	//pFrame=cvQueryFrame( pCapture1 );  
 
-		//char* rgbData = 
+	//if(!pFrame)break;  
+	//cvShowImage("video",pFrame1);
 
-		//rgbFrame frame2send = new rgbFrame();
-		
-//		CNokiaFaceRecognitionDemoDlg::ThreadSendFrame2Detect();
-		
-		//char c=cvWaitKey(33);  
-		//if(c==27)break;  
+	//char* rgbData = 
+
+	//rgbFrame frame2send = new rgbFrame();
+
+	//		CNokiaFaceRecognitionDemoDlg::ThreadSendFrame2Detect();
+
+	//char c=cvWaitKey(33);  
+	//if(c==27)break;  
 	//}  
 	/*cvReleaseCapture(&pCapture1);  
 	cvDestroyWindow("video");  */
 }
 
-// 用于通过Socket发送当前帧进行检测的线程
+// 用于通过Socket发送当前帧进行检测
 UINT CNokiaFaceRecognitionDemoDlg::ThreadSendFrame2Detect(LPVOID pParam)
 {
 	if (NULL == pParam)
@@ -311,7 +321,7 @@ DWORD CNokiaFaceRecognitionDemoDlg::ThreadReceiveRecResult(LPVOID pParam)
 		if (WM_USERRECEIVERECRESULT == msg.message)
 		{
 			//在这里利用Socket接收检测结果，可以是循环，直到接收到，并且接收完整为止
-			
+
 		}
 		else if (WM_QUIT == msg.message)
 			return 0;
@@ -323,7 +333,7 @@ void CNokiaFaceRecognitionDemoDlg::OnBnClickedButton1()
 {
 	// TODO: 
 	CvCapture* pCapture2 = cvCreateCameraCapture(0);
-	
+
 	//声明IplImage指针  
 	//IplImage* pFrame2 = NULL;  
 
@@ -340,7 +350,7 @@ void CNokiaFaceRecognitionDemoDlg::OnBnClickedButton1()
 		if(pFrame2.cols == 0)break;  
 		imshow("bufferVideo",pFrame2); 
 
-	//	CNokiaFaceRecognitionDemoDlg::ThreadSendFrame2Detect(pFrame2);
+		//	CNokiaFaceRecognitionDemoDlg::ThreadSendFrame2Detect(pFrame2);
 
 		char c=cvWaitKey(33);  
 		if(c==27)break;  
