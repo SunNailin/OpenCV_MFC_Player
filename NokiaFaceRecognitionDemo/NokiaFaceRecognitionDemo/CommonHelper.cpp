@@ -12,16 +12,18 @@ CCommonHelper::~CCommonHelper(void)
 }
 
 
-unsigned char* CCommonHelper::cvMat2RGB(cv::Mat matFrame)
+ unsigned char* CCommonHelper::cvMat2RGB(cv::Mat matFrame)
 {
 	unsigned char *arrayData=new unsigned char[matFrame.rows*matFrame.cols];
-    if (matFrame.isContinuous())
-        arrayData = matFrame.data;
-    Mat myimg(1920,1080, CV_8UC3,arrayData);
-    for (int i = 0; i < matFrame.rows * matFrame.cols * 3; i++) {
-       myimg.at<unsigned char>(i) = (unsigned char)arrayData[i]; 
-    }
+	if (matFrame.isContinuous())
+		arrayData = matFrame.data;
 	return arrayData;
+}
+
+ cv::Mat CCommonHelper::RGB2cvMat(unsigned char* rgbData)
+{
+	Mat myimg(IMAGE_HEIGHT,IMAGE_WIDTH, CV_8UC3,rgbData);
+	return myimg;
 }
 
 

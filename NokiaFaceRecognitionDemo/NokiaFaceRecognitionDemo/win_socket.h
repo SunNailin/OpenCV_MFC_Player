@@ -6,113 +6,6 @@
 
 #endif
 
-class WinServer{
-public:
-	WinServer(char* lisIp, int lisPort){
-		this->lisIp = lisIp;
-		this->lisPort = lisPort;
-		init();
-	}
-	void lisConn(){
-		//Listen监听端
-		listen(sockServer,5);//5为等待连接数目
-		printf("Server监听链接...\n");
-		int len=sizeof(SOCKADDR);
-		//会阻塞进程，直到有客户端连接上来为止
-		sockClient=accept(sockServer,(SOCKADDR*)&addrClient,&len);
-		printf("Server连接已建立\n");
-	}
-	int sendMsg(char* filename){
-		FILE *fp = fopen(filename, "rb");		//以二进制方式打开文件
-		if(fp == NULL){
-			printf("Cannot open file, press any key to exit!\n");
-			system("pause");
-			exit(0);
-		}
-		fseek(fp, 0L, SEEK_END );		//发送4字节的文件长度
-		int length = ftell(fp);
-		lenBuf[0]  = length >> 24;     
-		lenBuf[1] = length >> 16;
-		lenBuf[2] = length >> 8;
-		lenBuf[3] = length;
-		int sendRet = send(sockClient,lenBuf,LEN_BUF_SIZE,0);
-		memset(lenBuf,0,LEN_BUF_SIZE);
-
-		fseek(fp,0L,SEEK_SET);			//循环发送文件
-		int nCount;
-		while( (nCount = fread(sendBuf, 1, BUF_SIZE, fp)) > 0 ){
-			send(sockClient, sendBuf, nCount, 0);
-		}
-		printf("发送完毕\n");
-		memset(sendBuf,0,BUF_SIZE);	
-
-		return 1;
-	}
-
-	int recvMsg(char* filename){
-		FILE *fp = fopen(filename, "wb");		//以二进制方式打开文件
-		if(fp == NULL){
-			printf("Cannot open file, press any key to exit!\n");
-			system("pause");
-			exit(0);
-		}
-
-		int recvHeaderSize = recv(sockClient,lenBuf,4,0);		//接收文件4字节长度
-		int fileSize = ((unsigned char)lenBuf[0]<<24)|((unsigned char)lenBuf[1]<<16)|((unsigned char)lenBuf[2]<<8)|(unsigned char)lenBuf[3];
-		memset(lenBuf,0,LEN_BUF_SIZE);
-
-		int ackCount=0;
-		int nCount;		//循环接收文件
-		while( (nCount = recv(sockClient, recvBuf, BUF_SIZE, 0)) > 0 ){
-			fwrite(recvBuf, nCount, 1, fp);
-			ackCount+=nCount;
-			if(ackCount==fileSize){
-				break;
-			}
-		}
-		printf("接收完毕\n");
-
-		memset(recvBuf,0,BUF_SIZE);
-
-		return 1;
-	}
-
-	void release(){
-		//关闭socket
-		closesocket(sockClient);
-		closesocket(sockServer);
-		WSACleanup();
-	}
-
-private:
-	void init(){
-		memset(sendBuf,0,BUF_SIZE);
-		memset(recvBuf,0,BUF_SIZE);
-		memset(lenBuf,0,LEN_BUF_SIZE);
-		WSAStartup(MAKEWORD(2,2),&wsaData);
-		sockServer=socket(AF_INET,SOCK_STREAM,0);
-		addrServer.sin_addr.S_un.S_addr=inet_addr(lisIp);
-		addrServer.sin_family=AF_INET;
-		addrServer.sin_port=htons(lisPort);
-		bind(sockServer,(SOCKADDR*)&addrServer,sizeof(SOCKADDR));
-
-		lisConn();
-	}
-
-
-	char* lisIp;
-	int lisPort;
-
-	WSADATA wsaData;
-	SOCKET sockServer;
-	SOCKADDR_IN addrServer;
-	SOCKET sockClient;
-	SOCKADDR_IN addrClient;
-	char sendBuf[BUF_SIZE];
-	char recvBuf[BUF_SIZE];
-	char lenBuf[LEN_BUF_SIZE];
-};
-
 class WinClient{
 public:
 	WinClient(char* ipOp, int portOp){
@@ -199,6 +92,7 @@ public:
 
 		return 1;
 	}
+
 	int recvHead(HEAD* heads){
 		
 		int ackCount=0;
@@ -225,22 +119,23 @@ public:
 		for(int i=0;i<headNum;i++){
 			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE,4);
 			heads[i].Frame_No = byte2int();
-			memcpy(&(heads[i].HeadIndex), recvHeadByte+i*HEAD_SIZE+4,1);
-			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+5,4);
+			memcpy(&(heads[i].HeadIndex), recvHeadByte+i*HEAD_SIZE+4,4);
+			heads[i].HeadIndex = byte2int();
+			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+8,4);
 			heads[i].x = byte2int();
-			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+9,4);
+			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+12,4);
 			heads[i].y = byte2int();
-			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+13,4);
+			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+16,4);
 			heads[i].width = byte2int();
-			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+17,4);
+			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+20,4);
 			heads[i].height = byte2int();
-			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+21,4);
+			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+24,4);
 			heads[i].facename = byte2int();
-			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+25,4);
+			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+28,4);
 			heads[i].Pre_Frame_No = byte2int();
-			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+29,4);
+			memcpy(recvLenBuf, recvHeadByte+i*HEAD_SIZE+32,4);
 			heads[i].PrevHeadIndex = byte2int();
-			memcpy(heads[i].Face, recvHeadByte+i*HEAD_SIZE+33, FACE_SIZE);
+			memcpy(heads[i].Face, recvHeadByte+i*HEAD_SIZE+36, FACE_SIZE);
 		}
 		return 1;
 	}

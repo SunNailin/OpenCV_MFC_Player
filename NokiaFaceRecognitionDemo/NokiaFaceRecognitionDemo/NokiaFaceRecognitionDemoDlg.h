@@ -54,4 +54,6 @@ public:
 private:
 	
 	rgbFrame* m_buffer;	
+public:
+	afx_msg void OnBnClickedTestintface();
 };

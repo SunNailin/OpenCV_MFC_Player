@@ -10,6 +10,7 @@
 #include <highgui.h>
 #include <Windows.h>
 #include <queue>
+#include "CommonHelper.h"
 
 #include "UserMessageDef.h"
 
@@ -89,6 +90,7 @@ BEGIN_MESSAGE_MAP(CNokiaFaceRecognitionDemoDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK, &CNokiaFaceRecognitionDemoDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDC_BUTTON1, &CNokiaFaceRecognitionDemoDlg::OnBnClickedButton1)
 	ON_BN_CLICKED(IDC_BUTTON2, &CNokiaFaceRecognitionDemoDlg::OnBnClickedButton2)
+	ON_BN_CLICKED(IDC_TESTINTFACE, &CNokiaFaceRecognitionDemoDlg::OnBnClickedTestintface)
 END_MESSAGE_MAP()
 
 
@@ -185,6 +187,7 @@ HCURSOR CNokiaFaceRecognitionDemoDlg::OnQueryDragIcon()
 //显示原始视频流，并向检测端发送数据，维护缓冲区
 void CNokiaFaceRecognitionDemoDlg::OnBnClickedOk()
 {
+
 	cvNamedWindow("originVideo", 1);
 	while(true){		
 		cv::Mat matFrame = CNokiaFaceRecognitionDemoDlg::RcvRgbFrmFromDecoderServer();
@@ -194,6 +197,9 @@ void CNokiaFaceRecognitionDemoDlg::OnBnClickedOk()
 		if(27 == c) break;
 	}
 	cvDestroyWindow("originVideo"); 
+
+
+
 }
 
 void CNokiaFaceRecognitionDemoDlg::OnFinalRelease()
@@ -331,32 +337,68 @@ DWORD CNokiaFaceRecognitionDemoDlg::ThreadReceiveRecResult(LPVOID pParam)
 
 void CNokiaFaceRecognitionDemoDlg::OnBnClickedButton1()
 {
-	// TODO: 
-	CvCapture* pCapture2 = cvCreateCameraCapture(0);
+	rgbFrame rgbFrm;
+	int frameNo = 0;
+	WinClient m_Client("10.103.110.250",10086);
+	Imagehead imgHd;
+	Size dsize = Size(IMAGE_WIDTH,IMAGE_HEIGHT);
+	HEAD hd[MAX_HEAD_LEN];
+	cvNamedWindow("testInterface", 1);  
 
-	//声明IplImage指针  
-	//IplImage* pFrame2 = NULL;  
+	while(1) {
+		// 从服务器端获取解码出的rgbFrame（这里用cv::Mat模拟从服务器端得到的数据）
+		cv::Mat matFrame = CNokiaFaceRecognitionDemoDlg::RcvRgbFrmFromDecoderServer();
+		cv::Mat tmpMat = Mat(dsize,CV_32S);
+		cv::resize(matFrame,tmpMat,dsize);
+		//将mat数据封装到rgbFrame中		
 
-	////获取摄像头  
-	//CvCapture* pCapture2 = cvCreateCameraCapture(0);  
+		unsigned char* tmpRgbData =	CCommonHelper::cvMat2RGB(tmpMat);
+		cv::Mat tmpMat2Show = CCommonHelper::RGB2cvMat(tmpRgbData);
+		//imshow("testInterface",tmpMat2Show);
+		cv::waitKey(0);
+		rgbFrm.frameNo = frameNo;
+		rgbFrm.frameLen = MAX_LEN;
+		rgbFrm.rgbData = tmpRgbData;
+		int headIndex = 0;
 
-	////创建窗口  
-	cvNamedWindow("bufferVideo", 1);  
 
-	////显示视频  
-	while(1)  
-	{  
-		cv::Mat pFrame2 = (cv::Mat)cvQueryFrame( pCapture2 ); 
-		if(pFrame2.cols == 0)break;  
-		imshow("bufferVideo",pFrame2); 
+		// 将从服务器端得到的视频帧传输给检测服务器
+		if(m_Client.sendRGBFrame(rgbFrm)) {
+			printf("发送成功！视频帧号：%d",frameNo);
+			frameNo++;
+		}
+		else {
+			printf("发送失败！视频帧号：%d",frameNo);
+			exit(1);
+		}
 
-		//	CNokiaFaceRecognitionDemoDlg::ThreadSendFrame2Detect(pFrame2);
+		// 从检测服务器取得检测出来的数据
+		char c = cv::waitKey(500);
+		if(27 == c) break;
+		m_Client.recvImagehead(imgHd);
+		m_Client.recvHead(hd);
 
-		char c=cvWaitKey(33);  
-		if(c==27)break;  
-	}  
-	cvReleaseCapture(&pCapture2);  
-	cvDestroyWindow("bufferVideo"); 
+		// 将检测数据画到视频帧中
+		CvFont font;  
+		cvInitFont(&font, CV_FONT_HERSHEY_PLAIN, 1.5f, 1.5f, 0, 2, CV_AA);//设置显示的字体
+		IplImage imgTmp = tmpMat;
+		IplImage *input = cvCloneImage(&imgTmp);
+		if(headIndex<imgHd.Head_num)
+		{
+			CvPoint P1,P2;
+			P1.x = hd[headIndex].x;
+			P1.y = hd[headIndex].y;
+			P2.x = hd[headIndex].x + hd[headIndex].width;
+			P2.y = hd[headIndex].y + hd[headIndex].height;
+			int fcID = hd[headIndex].facename;
+			char* strID = (char*)&fcID;
+			//itoa(fcID,strID,10);
+			cvRectangle(input,P1 ,P2, CV_RGB(0, 255, 0), 2); 
+			cvPutText(input,strID, cvPoint(P1.x, P1.y-10), &font, CV_RGB(255, 0, 0));
+		}
+		// 显示
+		cvShowImage("testInterface",input);  
+	}
 }
 
 
@@ -364,4 +406,68 @@ void CNokiaFaceRecognitionDemoDlg::OnBnClickedButton2()
 {
 	int rgbFrameSize = sizeof(rgbFrame);
 	return;
+}
+
+
+void CNokiaFaceRecognitionDemoDlg::OnBnClickedTestintface()
+{
+	// TODO: 接口测试
+
+	rgbFrame rgbFrm;
+	int frameNo = 0;
+	WinClient m_Client("10.103.222.250",10086);
+	Imagehead imgHd;
+	HEAD hd[MAX_HEAD_LEN];
+	cvNamedWindow("testInterface", 1);  
+
+	while(1) {
+		// 从服务器端获取解码出的rgbFrame（这里用cv::Mat模拟从服务器端得到的数据）
+		cv::Mat matFrame = CNokiaFaceRecognitionDemoDlg::RcvRgbFrmFromDecoderServer();
+
+		//将mat数据封装到rgbFrame中	
+		unsigned char* tmpRgbData =	CCommonHelper::cvMat2RGB(matFrame);
+		rgbFrm.frameNo = frameNo;
+		rgbFrm.frameLen = MAX_LEN;
+		rgbFrm.rgbData = tmpRgbData;
+		int headIndex = 0;
+
+
+		// 将从服务器端得到的视频帧传输给检测服务器
+		//if(m_Client.sendRGBFrame(rgbFrm)) {
+		//	printf("发送成功！视频帧号：%d",frameNo);
+		//	frameNo++;
+		//}
+		//else {
+		//	printf("发送失败！视频帧号：%d",frameNo);
+		//	exit(1);
+		//}
+
+		//// 从检测服务器取得检测出来的数据
+		//cv::waitKey(500);
+		//m_Client.recvImagehead(imgHd);
+		//m_Client.recvHead(hd);
+
+		// 将检测数据画到视频帧中
+		CvFont font;  
+		cvInitFont(&font, CV_FONT_HERSHEY_PLAIN, 1.5f, 1.5f, 0, 2, CV_AA);//设置显示的字体
+		IplImage imgTmp = matFrame;
+		IplImage *input = cvCloneImage(&imgTmp);
+		if(headIndex<imgHd.Head_num)
+		{
+			CvPoint P1,P2;
+			P1.x = hd[headIndex].x;
+			P1.y = hd[headIndex].y;
+			P2.x = hd[headIndex].x + hd[headIndex].width;
+			P2.y = hd[headIndex].y + hd[headIndex].height;
+			int fcID = hd[headIndex].facename;
+			char* strID ;
+			itoa(fcID,strID,10);
+			cvRectangle(input,P1 ,P2, CV_RGB(0, 255, 0), 2); 
+			cvPutText(input,strID, cvPoint(P1.x, P1.y-10), &font, CV_RGB(255, 0, 0));
+		}
+		// 显示
+		cvShowImage("testInterface",input);  
+	}
+
+
 }
