@@ -14,7 +14,7 @@ CCommonHelper::~CCommonHelper(void)
 
  unsigned char* CCommonHelper::cvMat2RGB(cv::Mat matFrame)
 {
-	unsigned char *arrayData=new unsigned char[matFrame.rows*matFrame.cols];
+	unsigned char *arrayData=new unsigned char[matFrame.rows*matFrame.cols+1];
 	if (matFrame.isContinuous())
 		arrayData = matFrame.data;
 	return arrayData;

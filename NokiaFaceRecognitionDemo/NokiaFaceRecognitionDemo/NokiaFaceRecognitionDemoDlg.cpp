@@ -353,9 +353,10 @@ void CNokiaFaceRecognitionDemoDlg::OnBnClickedButton1()
 		//将mat数据封装到rgbFrame中		
 
 		unsigned char* tmpRgbData =	CCommonHelper::cvMat2RGB(tmpMat);
-		cv::Mat tmpMat2Show = CCommonHelper::RGB2cvMat(tmpRgbData);
+		//cv::Mat tmpMat2Show = CCommonHelper::RGB2cvMat(tmpRgbData);
 		//imshow("testInterface",tmpMat2Show);
-		cv::waitKey(0);
+		//cv::waitKey(500);
+
 		rgbFrm.frameNo = frameNo;
 		rgbFrm.frameLen = MAX_LEN;
 		rgbFrm.rgbData = tmpRgbData;
